@@ -482,16 +482,24 @@
 
   // Click anywhere on slide to advance (projector-friendly)
   document.getElementById('presentation').addEventListener('click', e => {
+    if (didSwipe) { didSwipe = false; return; }
     if (!e.target.closest('.dot') && !e.target.closest('.sp-seg')) navigate(1);
   });
 
   // Touch swipe for mobile
   let touchStartX = 0;
+  let didSwipe = false;
   const pres = document.getElementById('presentation');
-  pres.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  pres.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    didSwipe = false;
+  }, { passive: true });
   pres.addEventListener('touchend', e => {
     const diff = touchStartX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 40) navigate(diff > 0 ? 1 : -1);
+    if (Math.abs(diff) > 40) {
+      didSwipe = true;
+      navigate(diff > 0 ? 1 : -1);
+    }
   }, { passive: true });
 
   updateUI(false);
