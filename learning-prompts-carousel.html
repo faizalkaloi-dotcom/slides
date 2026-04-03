@@ -480,10 +480,13 @@
     if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
   });
 
-  // Click anywhere on slide to advance (projector-friendly)
+  // Click/tap left or right half to navigate
   document.getElementById('presentation').addEventListener('click', e => {
     if (didSwipe) { didSwipe = false; return; }
-    if (!e.target.closest('.dot') && !e.target.closest('.sp-seg')) navigate(1);
+    if (e.target.closest('.dot') || e.target.closest('.sp-seg')) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickedLeft = e.clientX < rect.left + rect.width / 2;
+    navigate(clickedLeft ? -1 : 1);
   });
 
   // Touch swipe for mobile
