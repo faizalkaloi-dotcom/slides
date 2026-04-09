@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Playables SDK -->
+<script>// Playables SDK v1.0.0
+// Game lifecycle bridge: rAF-based game-ready detection + event communication
+(function() {
+  'use strict';
+
+  var HANDLER_NAME = 'playablesGameEventHandler';
+  var ANDROID_BRIDGE_NAME = '_MetaPlayablesBridge';
+  var RAF_FRAME_THRESHOLD = 3;
+
+  var gameReadySent = false;
+  var firstInteractionSent = false;
+  var errorSent = false;
+  var frameCount = 0;
+  var originalRAF = window.requestAnimationFrame;
+
+  // --- Transport Layer ---
+
+  function hasIOSBridge() {
+    return !!(window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers[HANDLER_NAME]);
+  }
+
+  function hasAndroidBridge() {
+    return !!(window[ANDROID_BRIDGE_NAME] &&
+              typeof window[ANDROID_BRIDGE_NAME].postEvent === 'function');
+  }
+
+  function isInIframe() {
+    return !!(window.parent && window.parent !== window);
+  }
+
+  function sendEvent(eventName, payload) {
+    var message = {
+      type: eventName,
+      payload: payload || {},
+      timestamp: Date.now()
+    };
+
+    if (hasIOSBridge()) {
+      try {
+        window.webkit.messageHandlers[HANDLER_NAME].postMessage(message);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    if (hasAndroidBridge()) {
+    try {
+      var p = payload || {};
+      p.__secureToken = window.__fbAndroidBridgeAuthToken || '';
+      window[ANDROID_BRIDGE_NAME].postEvent(
+        eventName,
+        JSON.stringify(p)
+      );
+    } catch (e) { /* ignore */ }
+    return;
+  }
+
+    if (isInIframe()) {
+      try {
+        window.parent.postMessage(message, '*');
+      } catch (e) { /* ignore */ }
+      return;
+    }
+  }
+
+  // --- rAF Game-Ready Detection ---
+
+  function onFrame() {
+    if (gameReadySent) return;
+
+    frameCount++;
+    if (frameCount >= RAF_FRAME_THRESHOLD) {
+      gameReadySent = true;
+      sendEvent('game_ready', {
+        frame_count: frameCount,
+        detected_at: Date.now()
+      });
+      return;
+    }
+
+    originalRAF.call(window, onFrame);
+  }
+
+  if (originalRAF) {
+    window.requestAnimationFrame = function(callback) {
+      if (!gameReadySent) {
+        return originalRAF.call(window, function(timestamp) {
+          frameCount++;
+          if (frameCount >= RAF_FRAME_THRESHOLD && !gameReadySent) {
+            gameReadySent = true;
+            sendEvent('game_ready', {
+              frame_count: frameCount,
+              detected_at: Date.now()
+            });
+          }
+          callback(timestamp);
+        });
+      }
+      return originalRAF.call(window, callback);
+    };
+  }
+
+  // --- First User Interaction Detection ---
+
+  function setupFirstInteractionDetection() {
+    var events = ['touchstart', 'mousedown', 'keydown'];
+
+    function onFirstInteraction() {
+      if (firstInteractionSent) return;
+      firstInteractionSent = true;
+      sendEvent('user_interaction_start', null);
+
+      for (var i = 0; i < events.length; i++) {
+        document.removeEventListener(events[i], onFirstInteraction, true);
+      }
+    }
+
+    for (var i = 0; i < events.length; i++) {
+      document.addEventListener(events[i], onFirstInteraction, true);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFirstInteractionDetection);
+  } else {
+    setupFirstInteractionDetection();
+  }
+
+  // --- Auto Error Capture ---
+
+  window.addEventListener('error', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    sendEvent('error', {
+      message: event.message || 'Unknown error',
+      source: event.filename || '',
+      lineno: event.lineno || 0,
+      colno: event.colno || 0,
+      auto_captured: true
+    });
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    var reason = event.reason;
+    sendEvent('error', {
+      message: (reason instanceof Error) ? reason.message : String(reason),
+      type: 'unhandled_promise_rejection',
+      auto_captured: true
+    });
+  });
+
+  // --- Public API ---
+
+  window.playablesSDK = {
+    complete: function(score) {
+      sendEvent('game_ended', {
+        score: score,
+        completed: true
+      });
+    },
+
+    error: function(message) {
+      if (errorSent) return;
+      errorSent = true;
+      sendEvent('error', {
+        message: message || 'Unknown error',
+        auto_captured: false
+      });
+    },
+
+    sendEvent: function(eventName, payload) {
+      if (!eventName || typeof eventName !== 'string') return;
+      sendEvent(eventName, payload);
+    }
+  };
+
+  // Kick off rAF detection in case no game code calls rAF immediately
+  if (originalRAF) {
+    originalRAF.call(window, onFrame);
+  }
+})();</script>
+<script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Module 1: Introduction to Intellectual Property (IP)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .slide-card { transition: all 0.3s ease; }
+    input[type="radio"] { accent-color: #1877F2; }
+    select:focus, input:focus { outline: 2px solid #1877F2; outline-offset: 2px; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <!-- Progress Bar -->
+  <div class="w-full h-1.5 bg-gray-200 fixed top-0 left-0 z-50">
+    <div id="progress-bar" class="h-full bg-[#1877F2] transition-all duration-300" style="width: 3.57%"></div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex items-center justify-center p-4 md:p-8 pt-12">
+    <div id="slide-card" class="slide-card bg-white rounded-2xl shadow-xl w-full max-w-6xl min-h-[75vh] flex flex-col">
+      <div id="slide-content" class="flex-1 p-8 md:p-12 lg:p-16 overflow-y-auto"></div>
+      
+      <!-- Navigation -->
+      <div class="flex justify-between items-center p-6 md:px-12 border-t bg-gray-50 rounded-b-2xl">
+        <button id="prev-btn" class="px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Previous
+        </button>
+        <div class="hidden md:flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-[#1877F2]"></span>
+          <span class="text-sm text-gray-500"></span>
+        </div>
+        <button id="next-btn" class="px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 bg-[#1877F2] text-white hover:bg-[#166FE5] disabled:opacity-40">
+          Next
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full border-t bg-white py-3 px-6 grid grid-cols-3 items-center text-xs md:text-sm text-gray-500">
+    <div class="truncate">Module 1 | IP for Researchers</div>
+    <div class="text-center">©Teraju IP 2026</div>
+    <div class="text-right" id="slide-counter">1 / 28</div>
+  </footer>
+
+  <script>
+    const slides = [
+      // Slide 1 - Cover
+      `<div class="text-center flex flex-col items-center justify-center h-full min-h-[55vh]">
+        <div class="inline-flex items-center gap-3 mb-8 px-5 py-2 bg-[#1877F2]/10 rounded-full">
+          <span class="text-[#1877F2] font-semibold text-lg">Module 1</span>
+        </div>
+        <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight mb-8">Introduction to<br>Intellectual Property</h1>
+        <div class="flex flex-wrap justify-center gap-4 md:gap-8 mb-10 text-xl md:text-2xl">
+          <span class="flex items-center gap-2"><span class="text-3xl">🧪</span> Patents</span>
+          <span class="flex items-center gap-2"><span class="text-3xl">™️</span> Trademarks</span>
+          <span class="flex items-center gap-2"><span class="text-3xl">©️</span> Copyright</span>
+          <span class="flex items-center gap-2"><span class="text-3xl">🎨</span> Industrial Designs</span>
+        </div>
+        <p class="text-2xl text-gray-600 font-medium">For Researchers</p>
+        <div class="mt-16 text-gray-400 flex items-center gap-2">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Duration: 1 hour
+        </div>
+      </div>`,
+
+      // Slide 2 - Learning Objectives
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-10">Learning Objectives</h2>
+        <ul class="space-y-6 text-xl md:text-2xl text-gray-800">
+          <li class="flex gap-5 items-start"><span class="text-[#1877F2] text-3xl mt-1">•</span><span>Understand IP fundamentals and key terminology</span></li>
+          <li class="flex gap-5 items-start"><span class="text-[#1877F2] text-3xl mt-1">•</span><span>Differentiate the four main types of IP</span></li>
+          <li class="flex gap-5 items-start"><span class="text-[#1877F2] text-3xl mt-1">•</span><span>Map IP protection to typical research outputs</span></li>
+          <li class="flex gap-5 items-start"><span class="text-[#1877F2] text-3xl mt-1">•</span><span>Identify protection pathways in Malaysia via MyIPO</span></li>
+        </ul>
+      </div>`,
+
+      // Slide 3 - What is IP
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-10">What is Intellectual Property?</h2>
+        <div class="grid md:grid-cols-2 gap-10">
+          <div class="space-y-6">
+            <p class="text-xl md:text-2xl text-gray-800 leading-relaxed"><strong>Definition:</strong> Intangible assets arising from human intellect that receive legal protection.</p>
+            <div class="bg-gray-50 p-7 rounded-2xl border border-gray-100">
+              <p class="font-semibold text-xl mb-4 text-gray-900">Key characteristics</p>
+              <ul class="space-y-3 text-lg text-gray-700">
+                <li class="flex gap-3"><span class="text-[#1877F2]">→</span> <span><strong>Territorial</strong> – rights granted country-by-country</span></li>
+                <li class="flex gap-3"><span class="text-[#1877F2]">→</span> <span><strong>Time-limited</strong> – duration varies by type</span></li>
+                <li class="flex gap-3"><span class="text-[#1877F2]">→</span> <span><strong>Transferable</strong> – can be licensed or assigned</span></li>
+                <li class="flex gap-3"><span class="text-[#1877F2]">→</span> <span><strong>Exclusive</strong> – right to prevent unauthorized use</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="bg-[#1877F2]/5 p-7 rounded-2xl border border-[#1877F2]/10">
+            <p class="font-semibold text-xl mb-5 text-gray-900">Research examples</p>
+            <ul class="space-y-4 text-lg">
+              <li class="flex gap-3 items-start"><span class="text-2xl">🧪</span><span>Novel anti-cancer compound → <strong>Patent</strong></span></li>
+              <li class="flex gap-3 items-start"><span class="text-2xl">©️</span><span>Thesis chapter and figures → <strong>Copyright</strong></span></li>
+              <li class="flex gap-3 items-start"><span class="text-2xl">™️</span><span>Diagnostic kit "MalariaRapid" → <strong>Trademark</strong></span></li>
+              <li class="flex gap-3 items-start"><span class="text-2xl">🎨</span><span>Unique microfluidic chip shape → <strong>Industrial Design</strong></span></li>
+            </ul>
+          </div>
+        </div>
+      </div>`,
+
+      // Slide 4 - Why IP Matters
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-10">Why IP Matters for Researchers</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="p-7 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition">
+            <h3 class="font-semibold text-2xl mb-3 text-gray-900">Funding & Grants</h3>
+            <p class="text-lg text-gray-700 leading-relaxed">Funders increasingly require IP management plans. Protected outputs strengthen impact claims and follow-on funding.</p>
+          </div>
+          <div class="p-7 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition">
+            <h3 class="font-semibold text-2xl mb-3 text-gray-900">Commercialization</h3>
+            <p class="text-lg text-gray-700 leading-relaxed">Patents and designs enable licensing, spin-offs, and industry collaboration while preserving academic freedom.</p>
+          </div>
+          <div class="p-7 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition">
+            <h3 class="font-semibold text-2xl mb-3 text-gray-900">Reputation & Attribution</h3>
+            <p class="text-lg text-gray-700 leading-relaxed">Copyright secures attribution for papers, code, and data. Trademarks build trusted research brands.</p>
+          </div>
+          <div class="p-7 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition">
+            <h3 class="font-semibold text-2xl mb-3 text-gray-900">Risk Mitigation</h3>
+            <p class="text-lg text-gray-700 leading-relaxed">Early IP reduces risk of scooping, infringement claims, and loss of rights through premature disclosure.</p>
+          </div>
+        </div>
+      </div>`,
+
+      // Slide 5 - Overview Table
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-10">Overview of Four Main Types</h2>
+        <div class="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="bg-[#1877F2] text-white">
+                <th class="p-5 text-lg font-semibold rounded-tl-2xl">Type</th>
+                <th class="p-5 text-lg font-semibold">Protects</th>
+                <th class="p-5 text-lg font-semibold">Term (Malaysia)</th>
+                <th class="p-5 text-lg font-semibold rounded-tr-2xl">Example</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-lg">
+              <tr class="hover:bg-gray-50 transition">
+                <td class="p-5 font-semibold whitespace-nowrap">🧪 Patent</td>
+                <td class="p-5">Technical inventions</td>
+                <td class="p-5 font-medium">20 years from filing</td>
+                <td class="p-5 text-gray-600">Novel drug formulation</td>
+              </tr>
+              <tr class="hover:bg-gray-50 transition">
+                <td class="p-5 font-semibold whitespace-nowrap">™️ Trademark</td>
+                <td class="p-5">Distinctive signs</td>
+                <td class="p-5 font-medium">10 years, renewable</td>
+                <td class="p-5 text-gray-600">Lab logo, kit name</td>
+              </tr>
+              <tr class="hover:bg-gray-50 transition">
+                <td class="p-5 font-semibold whitespace-nowrap">©️ Copyright</td>
+                <td class="p-5">Expression of works</td>
+                <td class="p-5 font-medium">Life + 50 years</td>
+                <td class="p-5 text-gray-600">Paper, code, dataset</td>
+              </tr>
+              <tr class="hover:bg-gray-50 transition">
+                <td class="p-5 font-semibold whitespace-nowrap">🎨 Industrial Design</td>
+                <td class="p-5">Aesthetic appearance</td>
+                <td class="p-5 font-medium">Up to 25 years</td>
+                <td class="p-5 text-gray-600">Device housing shape</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>`,
+
+      // Slide 6 - Quiz 1
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-3">Quiz 1</h2>
+        <p class="text-gray-600 mb-8 text-lg">Test your fundamentals</p>
+        <div class="space-y-8" id="quiz1-container">
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-xl mb-4">1. Which of the following is NOT a form of IP?</p>
+            <div class="space-y-2 ml-2" data-q="q1">
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q1" value="A" class="mt-1"> <span class="text-lg">A) Patent</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q1" value="B" class="mt-1"> <span class="text-lg">B) Trademark</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q1" value="C" class="mt-1"> <span class="text-lg">C) Laboratory notebook (the physical object)</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q1" value="D" class="mt-1"> <span class="text-lg">D) Copyright</span></label>
+            </div>
+            <div class="mt-3 hidden" data-feedback="q1"></div>
+          </div>
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-xl mb-4">2. What does IP protect?</p>
+            <div class="space-y-2 ml-2" data-q="q2">
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q2" value="A" class="mt-1"> <span class="text-lg">A) Ideas themselves</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q2" value="B" class="mt-1"> <span class="text-lg">B) The expression or implementation of ideas</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q2" value="C" class="mt-1"> <span class="text-lg">C) Natural phenomena</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q2" value="D" class="mt-1"> <span class="text-lg">D) Mathematical formulas in abstract</span></label>
+            </div>
+            <div class="mt-3 hidden" data-feedback="q2"></div>
+          </div>
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-xl mb-4">3. What is the standard patent term in Malaysia?</p>
+            <div class="space-y-2 ml-2" data-q="q3">
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q3" value="A" class="mt-1"> <span class="text-lg">A) 10 years</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q3" value="B" class="mt-1"> <span class="text-lg">B) 15 years</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q3" value="C" class="mt-1"> <span class="text-lg">C) 20 years from filing</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q3" value="D" class="mt-1"> <span class="text-lg">D) Life of inventor + 50 years</span></label>
+            </div>
+            <div class="mt-3 hidden" data-feedback="q3"></div>
+          </div>
+        </div>
+        <button id="check-quiz1" class="mt-8 px-8 py-4 bg-[#1877F2] text-white font-semibold rounded-xl hover:bg-[#166FE5] transition text-lg shadow-md hover:shadow-lg">Check Answers</button>
+      </div>`,
+
+      // Slide 7 - Patents Definition
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">🧪 Patents – Definition</h2>
+        <p class="text-2xl md:text-3xl text-gray-800 mb-10 leading-relaxed">Patents protect <strong class="text-[#1877F2]">new technical inventions</strong> that offer a novel solution to a problem.</p>
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="bg-gradient-to-br from-[#1877F2]/10 to-[#1877F2]/5 p-8 rounded-2xl border border-[#1877F2]/20">
+            <div class="w-12 h-12 bg-[#1877F2] rounded-xl flex items-center justify-center mb-4"><span class="text-white font-bold text-xl">1</span></div>
+            <h3 class="font-semibold text-xl mb-3">Novelty</h3>
+            <p class="text-lg text-gray-700">Not disclosed anywhere in the world before filing.</p>
+          </div>
+          <div class="bg-gradient-to-br from-[#1877F2]/10 to-[#1877F2]/5 p-8 rounded-2xl border border-[#1877F2]/20">
+            <div class="w-12 h-12 bg-[#1877F2] rounded-xl flex items-center justify-center mb-4"><span class="text-white font-bold text-xl">2</span></div>
+            <h3 class="font-semibold text-xl mb-3">Inventive Step</h3>
+            <p class="text-lg text-gray-700">Non-obvious to a person skilled in the field.</p>
+          </div>
+          <div class="bg-gradient-to-br from-[#1877F2]/10 to-[#1877F2]/5 p-8 rounded-2xl border border-[#1877F2]/20">
+            <div class="w-12 h-12 bg-[#1877F2] rounded-xl flex items-center justify-center mb-4"><span class="text-white font-bold text-xl">3</span></div>
+            <h3 class="font-semibold text-xl mb-3">Industrial Applicability</h3>
+            <p class="text-lg text-gray-700">Can be made or used in industry.</p>
+          </div>
+        </div>
+      </div>`,
+
+      // Slide 8 - Patents Examples
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Patents – Research Examples</h2>
+        <ul class="space-y-5">
+          <li class="flex gap-5 items-start p-5 bg-gray-50 rounded-xl hover:bg-gray-100 transition"><span class="text-3xl">💊</span><div><strong class="text-xl">Pharmaceutical formulations</strong><p class="text-gray-600 text-lg">– novel delivery of active compound</p></div></li>
+          <li class="flex gap-5 items-start p-5 bg-gray-50 rounded-xl hover:bg-gray-100 transition"><span class="text-3xl">🤖</span><div><strong class="text-xl">Technical algorithms</strong><p class="text-gray-600 text-lg">– embedded in a device (not abstract math)</p></div></li>
+          <li class="flex gap-5 items-start p-5 bg-gray-50 rounded-xl hover:bg-gray-100 transition"><span class="text-3xl">📡</span><div><strong class="text-xl">IoT sensors</strong><p class="text-gray-600 text-lg">– low-power water quality monitor with novel architecture</p></div></li>
+          <li class="flex gap-5 items-start p-5 bg-gray-50 rounded-xl hover:bg-gray-100 transition"><span class="text-3xl">🧫</span><div><strong class="text-xl">Bioprocesses</strong><p class="text-gray-600 text-lg">– improved fermentation yield method</p></div></li>
+        </ul>
+        <p class="mt-8 text-gray-600 italic text-lg bg-amber-50 p-4 rounded-lg border-l-4 border-amber-400">Patent protects how it works, not the research paper describing it.</p>
+      </div>`,
+
+      // Slide 9 - Patents Requirements
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Patents – Requirements & Exclusions</h2>
+        <div class="grid md:grid-cols-2 gap-8">
+          <div class="bg-green-50 p-8 rounded-2xl border border-green-200">
+            <h3 class="font-semibold text-2xl mb-5 text-green-800 flex items-center gap-3"><span class="text-3xl">✓</span> Required</h3>
+            <ul class="space-y-3 text-lg text-gray-800">
+              <li class="flex gap-3"><span>•</span> Novelty worldwide</li>
+              <li class="flex gap-3"><span>•</span> Inventive step (non-obvious)</li>
+              <li class="flex gap-3"><span>•</span> Industrial application</li>
+              <li class="flex gap-3"><span>•</span> Sufficient disclosure</li>
+            </ul>
+          </div>
+          <div class="bg-red-50 p-8 rounded-2xl border border-red-200">
+            <h3 class="font-semibold text-2xl mb-5 text-red-800 flex items-center gap-3"><span class="text-3xl">✗</span> Excluded in Malaysia</h3>
+            <ul class="space-y-3 text-lg text-gray-800">
+              <li class="flex gap-3"><span>•</span> Discoveries, scientific theories</li>
+              <li class="flex gap-3"><span>•</span> Mathematical methods</li>
+              <li class="flex gap-3"><span>•</span> Plant or animal varieties</li>
+              <li class="flex gap-3"><span>•</span> Methods for medical treatment</li>
+            </ul>
+          </div>
+        </div>
+      </div>`,
+
+      // Slide 10 - Patents Process
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Patents – MyIPO Process</h2>
+        <div class="relative">
+          <div class="flex flex-col lg:flex-row items-stretch justify-between gap-3">
+            <div class="flex-1 p-5 bg-white border-2 border-gray-200 rounded-xl text-center hover:border-[#1877F2] transition"><p class="font-bold text-lg mb-1">1. Filing</p><p class="text-sm text-gray-600">Application + specification</p></div>
+            <div class="hidden lg:flex items-center text-gray-400"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+            <div class="flex-1 p-5 bg-white border-2 border-gray-200 rounded-xl text-center hover:border-[#1877F2] transition"><p class="font-bold text-lg mb-1">2. Formal Exam</p><p class="text-sm text-gray-600">Documentation check</p></div>
+            <div class="hidden lg:flex items-center text-gray-400"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+            <div class="flex-1 p-5 bg-white border-2 border-gray-200 rounded-xl text-center hover:border-[#1877F2] transition"><p class="font-bold text-lg mb-1">3. Publication</p><p class="text-sm text-gray-600">18 months</p></div>
+            <div class="hidden lg:flex items-center text-gray-400"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+            <div class="flex-1 p-5 bg-white border-2 border-gray-200 rounded-xl text-center hover:border-[#1877F2] transition"><p class="font-bold text-lg mb-1">4. Substantive</p><p class="text-sm text-gray-600">Novelty search</p></div>
+            <div class="hidden lg:flex items-center text-gray-400"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+            <div class="flex-1 p-5 bg-[#1877F2] text-white rounded-xl text-center shadow-lg"><p class="font-bold text-lg mb-1">5. Grant</p><p class="text-sm opacity-90">20-year term</p></div>
+          </div>
+        </div>
+        <div class="mt-8 p-5 bg-amber-50 rounded-xl border-l-4 border-amber-500">
+          <p class="text-lg text-gray-800"><strong>Tip:</strong> File before any public disclosure – conference, preprint, poster, or thesis submission all count as disclosure.</p>
+        </div>
+      </div>`,
+
+      // Slide 11 - Trademarks Definition
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">™️ Trademarks – Definition</h2>
+        <p class="text-2xl md:text-3xl text-gray-800 mb-10 leading-relaxed">Signs capable of distinguishing the goods or services of one enterprise from another.</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div class="p-7 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl text-center hover:shadow-md transition"><p class="text-4xl mb-3">🔤</p><p class="font-semibold text-lg">Names</p><p class="text-sm text-gray-600 mt-1">Brand names</p></div>
+          <div class="p-7 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl text-center hover:shadow-md transition"><p class="text-4xl mb-3">🖼️</p><p class="font-semibold text-lg">Logos</p><p class="text-sm text-gray-600 mt-1">Visual marks</p></div>
+          <div class="p-7 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl text-center hover:shadow-md transition"><p class="text-4xl mb-3">💬</p><p class="font-semibold text-lg">Slogans</p><p class="text-sm text-gray-600 mt-1">Taglines</p></div>
+          <div class="p-7 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl text-center hover:shadow-md transition"><p class="text-4xl mb-3">🔺</p><p class="font-semibold text-lg">Shapes</p><p class="text-sm text-gray-600 mt-1">Colors, sounds</p></div>
+        </div>
+      </div>`,
+
+      // Slide 12 - Trademarks Why
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Trademarks – Why Researchers Need Them</h2>
+        <ul class="space-y-5">
+          <li class="flex gap-5 items-start p-5 bg-gray-50 rounded-xl"><span class="text-3xl mt-1">🏢</span><div><strong class="text-xl">Spin-off company names</strong><p class="text-gray-600 text-lg mt-1">Protect brand identity early before incorporation</p></div></li>
+          <li class="flex gap-5 items-start p-5 bg-gray-50 rounded-xl"><span class="text-3xl mt-1">🧪</span><div><strong class="text-xl">Diagnostic kit branding</strong><p class="text-gray-600 text-lg mt-1">Builds trust with clinicians and regulators</p></div></li>
+          <li class="flex gap-5 items-start p-5 bg-gray-50 rounded-xl"><span class="text-3xl mt-1">💻</span><div><strong class="text-xl">Software platforms</strong><p class="text-gray-600 text-lg mt-1">Distinguish your research tool from competitors</p></div></li>
+          <li class="flex gap-5 items-start p-5 bg-gray-50 rounded-xl"><span class="text-3xl mt-1">🔬</span><div><strong class="text-xl">Lab services</strong><p class="text-gray-600 text-lg mt-1">Core facilities offering commercial analysis</p></div></li>
+        </ul>
+        <p class="mt-8 text-gray-700 italic text-lg bg-[#1877F2]/5 p-4 rounded-lg">A strong trademark survives long after a single patent expires.</p>
+      </div>`,
+
+      // Slide 13 - Trademarks Process
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Trademarks – Process</h2>
+        <div class="space-y-5">
+          <div class="flex gap-5 items-start p-6 bg-white border border-gray-200 rounded-xl hover:shadow-md transition"><div class="bg-[#1877F2] text-white rounded-2xl w-12 h-12 flex items-center justify-center flex-shrink-0 font-bold text-xl">1</div><div><strong class="text-xl">MyIPO Filing</strong><p class="text-gray-600 text-lg mt-1">Choose Nice classes (e.g., Class 9 for software, Class 42 for research services, Class 5 for diagnostics)</p></div></div>
+          <div class="flex gap-5 items-start p-6 bg-white border border-gray-200 rounded-xl hover:shadow-md transition"><div class="bg-[#1877F2] text-white rounded-2xl w-12 h-12 flex items-center justify-center flex-shrink-0 font-bold text-xl">2</div><div><strong class="text-xl">Examination</strong><p class="text-gray-600 text-lg mt-1">Distinctiveness assessment and conflict search</p></div></div>
+          <div class="flex gap-5 items-start p-6 bg-white border border-gray-200 rounded-xl hover:shadow-md transition"><div class="bg-[#1877F2] text-white rounded-2xl w-12 h-12 flex items-center justify-center flex-shrink-0 font-bold text-xl">3</div><div><strong class="text-xl">Publication & Opposition</strong><p class="text-gray-600 text-lg mt-1">2-month opposition period in Gazette</p></div></div>
+          <div class="flex gap-5 items-start p-6 bg-white border-2 border-[#1877F2]/30 rounded-xl bg-[#1877F2]/5"><div class="bg-[#1877F2] text-white rounded-2xl w-12 h-12 flex items-center justify-center flex-shrink-0 font-bold text-xl">4</div><div><strong class="text-xl">Registration</strong><p class="text-gray-600 text-lg mt-1">10 years protection, renewable indefinitely every 10 years</p></div></div>
+        </div>
+      </div>`,
+
+      // Slide 14 - Quiz 2
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-3">Quiz 2</h2>
+        <p class="text-gray-600 mb-8 text-lg">Patent vs Trademark distinctions</p>
+        <div class="space-y-8" id="quiz2-container">
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-xl mb-4">1. You develop a novel biosensor circuit. Which IP primarily applies?</p>
+            <div class="space-y-2 ml-2">
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q21" value="A" class="mt-1"> <span class="text-lg">A) Patent</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q21" value="B" class="mt-1"> <span class="text-lg">B) Trademark</span></label>
+            </div>
+            <div class="mt-3 hidden" data-feedback="q21"></div>
+          </div>
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-xl mb-4">2. You name your startup lab "BioSense Labs". Which IP protects the name?</p>
+            <div class="space-y-2 ml-2">
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q22" value="A" class="mt-1"> <span class="text-lg">A) Patent</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q22" value="B" class="mt-1"> <span class="text-lg">B) Trademark</span></label>
+            </div>
+            <div class="mt-3 hidden" data-feedback="q22"></div>
+          </div>
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-xl mb-4">3. Can a logo be patented?</p>
+            <div class="space-y-2 ml-2">
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q23" value="A" class="mt-1"> <span class="text-lg">A) Yes, as an invention</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q23" value="B" class="mt-1"> <span class="text-lg">B) No – protect via trademark (and possibly industrial design)</span></label>
+              <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-white cursor-pointer transition"><input type="radio" name="q23" value="C" class="mt-1"> <span class="text-lg">C) Only if it has a technical function</span></label>
+            </div>
+            <div class="mt-3 hidden" data-feedback="q23"></div>
+          </div>
+        </div>
+        <button id="check-quiz2" class="mt-8 px-8 py-4 bg-[#1877F2] text-white font-semibold rounded-xl hover:bg-[#166FE5] transition text-lg shadow-md hover:shadow-lg">Check Answers</button>
+      </div>`,
+
+      // Slide 15 - Copyright Definition
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">©️ Copyright – Definition</h2>
+        <p class="text-2xl md:text-3xl text-gray-800 mb-10 leading-relaxed">Automatic protection for <strong class="text-[#1877F2]">original expression</strong> of ideas – not the ideas themselves.</p>
+        <div class="grid md:grid-cols-3 gap-5">
+          <div class="p-8 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl text-center hover:shadow-md transition"><p class="text-5xl mb-4">📄</p><p class="font-semibold text-xl">Literary works</p><p class="text-sm text-gray-600 mt-2">Papers, theses, reports</p></div>
+          <div class="p-8 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl text-center hover:shadow-md transition"><p class="text-5xl mb-4">🎨</p><p class="font-semibold text-xl">Artistic works</p><p class="text-sm text-gray-600 mt-2">Figures, diagrams</p></div>
+          <div class="p-8 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl text-center hover:shadow-md transition"><p class="text-5xl mb-4">💻</p><p class="font-semibold text-xl">Software</p><p class="text-sm text-gray-600 mt-2">Code, databases</p></div>
+        </div>
+        <p class="mt-8 text-gray-700 text-lg bg-green-50 p-5 rounded-xl border-l-4 border-green-500">No registration needed in Malaysia – copyright arises automatically upon creation.</p>
+      </div>`,
+
+      // Slide 16 - Copyright for Researchers
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Copyright – For Researchers</h2>
+        <ul class="grid md:grid-cols-2 gap-4">
+          <li class="p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition flex items-center gap-4"><span class="text-3xl">📑</span><span class="text-lg">Journal articles and theses</span></li>
+          <li class="p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition flex items-center gap-4"><span class="text-3xl">💾</span><span class="text-lg">Source code and scripts</span></li>
+          <li class="p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition flex items-center gap-4"><span class="text-3xl">🗂️</span><span class="text-lg">Curated datasets</span></li>
+          <li class="p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition flex items-center gap-4"><span class="text-3xl">🖥️</span><span class="text-lg">Presentations and videos</span></li>
+          <li class="p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition flex items-center gap-4"><span class="text-3xl">📋</span><span class="text-lg">Lab protocols and SOPs</span></li>
+          <li class="p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition flex items-center gap-4"><span class="text-3xl">📊</span><span class="text-lg">Figures and infographics</span></li>
+        </ul>
+      </div>`,
+
+      // Slide 17 - Copyright Duration
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Copyright – Duration and Ownership</h2>
+        <div class="space-y-6">
+          <div class="p-8 bg-[#1877F2]/5 rounded-2xl border border-[#1877F2]/20">
+            <h3 class="font-semibold text-2xl mb-4 flex items-center gap-3"><span class="text-3xl">⏳</span> Duration (Malaysia)</h3>
+            <p class="text-xl text-gray-800">Life of author + <strong>50 years</strong> for literary/artistic works. Published editions and sound recordings have different terms.</p>
+          </div>
+          <div class="p-8 bg-gray-50 rounded-2xl border border-gray-200">
+            <h3 class="font-semibold text-2xl mb-4 flex items-center gap-3"><span class="text-3xl">👤</span> Ownership</h3>
+            <ul class="space-y-3 text-lg text-gray-800">
+              <li class="flex gap-3"><span class="text-[#1877F2]">•</span> <span>Generally, the creator is first owner</span></li>
+              <li class="flex gap-3"><span class="text-[#1877F2]">•</span> <span><strong>Employment:</strong> employer often owns works created in course of employment (check contract/university IP policy)</span></li>
+              <li class="flex gap-3"><span class="text-[#1877F2]">•</span> <span><strong>Joint authorship:</strong> shared rights for collaborators</span></li>
+              <li class="flex gap-3"><span class="text-[#1877F2]">•</span> <span>Can be assigned or licensed to publishers</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>`,
+
+      // Slide 18 - AI Copyright (NEW SLIDE)
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-6">Copyright Ownership of Artwork Created Using AI</h2>
+        <div class="space-y-4 text-base h-[60vh] overflow-y-auto pr-3">
+          <div class="p-5 bg-amber-50 border-l-4 border-amber-500 rounded-r-xl">
+            <p class="font-semibold text-lg mb-2">Current Position (Malaysia & International)</p>
+            <p class="text-gray-800">Copyright requires <strong>human authorship</strong>. Purely AI-generated output with minimal human input is generally <em>not protected</em>. MyIPO follows WIPO guidance emphasizing human creative contribution.</p>
+          </div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="p-5 bg-white border border-gray-200 rounded-xl">
+              <h3 class="font-semibold text-lg mb-2 text-green-700">AI as Tool ✓</h3>
+              <p class="text-gray-700">Researcher directs, selects, arranges, edits – human authorship likely established</p>
+            </div>
+            <div class="p-5 bg-white border border-gray-200 rounded-xl">
+              <h3 class="font-semibold text-lg mb-2 text-red-700">Autonomous ✗</h3>
+              <p class="text-gray-700">Simple prompt → unedited output – protection doubtful</p>
+            </div>
+          </div>
+          <div class="p-5 bg-gray-50 rounded-xl">
+            <h3 class="font-semibold text-lg mb-2">Prompt Engineering & Human Input</h3>
+            <p class="text-gray-700">Iterative prompting, composition choices, post-processing in Photoshop, combining multiple elements – these strengthen claim to human authorship. <strong>Document your workflow.</strong></p>
+          </div>
+          <div class="p-5 bg-gray-50 rounded-xl">
+            <h3 class="font-semibold text-lg mb-2">Platform Considerations</h3>
+            <p class="text-gray-700 mb-2"><strong>Midjourney, DALL·E, Stable Diffusion:</strong> Ownership depends on terms of service. Many grant you a license, not full copyright, and may retain rights to reuse.</p>
+            <p class="text-sm text-gray-600 italic">Always check current terms at time of creation.</p>
+          </div>
+          <div class="p-5 bg-[#1877F2]/5 rounded-xl border border-[#1877F2]/20">
+            <h3 class="font-semibold text-lg mb-3">Best Practices for Researchers</h3>
+            <ul class="space-y-2 text-gray-800">
+              <li class="flex gap-2"><span>✓</span> Document human contribution (prompts, edits, iterations)</li>
+              <li class="flex gap-2"><span>✓</span> Check and archive platform terms</li>
+              <li class="flex gap-2"><span>✓</span> Disclose AI use in publications (journal policies)</li>
+              <li class="flex gap-2"><span>✓</span> Consider CC0 or explicit licenses for AI figures</li>
+              <li class="flex gap-2"><span>✓</span> Prefer human-created figures for key IP</li>
+            </ul>
+          </div>
+          <div class="p-5 bg-red-50 rounded-xl border border-red-200">
+            <h3 class="font-semibold text-lg mb-2 text-red-800">Risk Areas</h3>
+            <ul class="space-y-1 text-gray-800">
+              <li>• <strong>Training data infringement:</strong> AI may replicate protected works</li>
+              <li>• <strong>Moral rights:</strong> Attribution and integrity issues</li>
+              <li>• <strong>Unenforceability:</strong> Cannot stop others using similar AI output</li>
+            </ul>
+          </div>
+          <div class="p-5 bg-[#1877F2] text-white rounded-xl">
+            <p class="font-semibold text-lg mb-1">Recommendation:</p>
+            <p>Treat AI-generated artwork as <strong>potentially non-copyrightable</strong> unless you can demonstrate substantial human authorship. For critical research outputs, add significant human creative editing.</p>
+          </div>
+        </div>
+      </div>`,
+
+      // Slide 19 - Industrial Designs Definition
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">🎨 Industrial Designs – Definition</h2>
+        <p class="text-2xl md:text-3xl text-gray-800 mb-10 leading-relaxed">Protection for the <strong class="text-[#1877F2]">visual appearance</strong> of a product – shape, configuration, pattern, ornamentation.</p>
+        <div class="bg-gradient-to-br from-[#1877F2]/10 to-purple-50 p-8 rounded-2xl border-2 border-[#1877F2]/20">
+          <p class="font-semibold text-xl mb-3 flex items-center gap-3"><span class="text-3xl">💡</span> Key distinction:</p>
+          <p class="text-xl text-gray-800">Protects <em class="font-semibold">how it looks</em>, not <em class="font-semibold">how it works</em>. Aesthetic features only – not dictated solely by technical function.</p>
+        </div>
+      </div>`,
+
+      // Slide 20 - Industrial Designs Examples
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Industrial Designs – Examples</h2>
+        <ul class="space-y-4">
+          <li class="flex gap-5 items-center p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition"><span class="text-3xl">🔬</span><span class="text-xl">Laboratory instrument housing with distinctive curves and UI layout</span></li>
+          <li class="flex gap-5 items-center p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition"><span class="text-3xl">🧩</span><span class="text-xl">Microfluidic chip channel layout (visual pattern)</span></li>
+          <li class="flex gap-5 items-center p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition"><span class="text-3xl">📦</span><span class="text-xl">Packaging for diagnostic kits – unique bottle shapes</span></li>
+          <li class="flex gap-5 items-center p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition"><span class="text-3xl">📱</span><span class="text-xl">UI iconography and device faceplate designs</span></li>
+        </ul>
+      </div>`,
+
+      // Slide 21 - Industrial Designs Requirements
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Industrial Designs – Requirements</h2>
+        <div class="grid md:grid-cols-2 gap-8">
+          <div class="p-8 bg-white border-2 border-gray-200 rounded-2xl">
+            <h3 class="font-semibold text-2xl mb-5 flex items-center gap-3"><span class="text-3xl">✓</span> Requirements</h3>
+            <ul class="space-y-3 text-lg">
+              <li class="flex gap-3"><span class="text-[#1877F2]">•</span> Novelty worldwide</li>
+              <li class="flex gap-3"><span class="text-[#1877F2]">•</span> Visible in normal use</li>
+              <li class="flex gap-3"><span class="text-[#1877F2]">•</span> Not dictated solely by technical function</li>
+              <li class="flex gap-3"><span class="text-[#1877F2]">•</span> Applicable to article of manufacture</li>
+            </ul>
+          </div>
+          <div class="p-8 bg-gradient-to-br from-[#1877F2]/10 to-[#1877F2]/5 border-2 border-[#1877F2]/30 rounded-2xl">
+            <h3 class="font-semibold text-2xl mb-5 flex items-center gap-3"><span class="text-3xl">⏳</span> Term (Malaysia)</h3>
+            <div class="space-y-4">
+              <div class="flex justify-between items-center"><span>Initial term:</span><strong class="text-xl">5 years</strong></div>
+              <div class="flex justify-between items-center"><span>Extensions:</span><strong class="text-xl">5-year blocks</strong></div>
+              <div class="pt-3 border-t-2 border-[#1877F2]/30 flex justify-between items-center"><span class="font-semibold">Maximum:</span><strong class="text-2xl text-[#1877F2]">25 years</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>`,
+
+      // Slide 22 - Quiz 3
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-3">Quiz 3</h2>
+        <p class="text-gray-600 mb-8 text-lg">Match scenarios to IP type</p>
+        <div class="space-y-4" id="quiz3-container">
+          <div class="p-5 border-2 border-gray-200 rounded-xl hover:border-gray-300 transition">
+            <p class="font-medium text-lg mb-3">A) New ergonomic pipette shape that improves grip comfort</p>
+            <select data-q="q31" class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg focus:border-[#1877F2]"><option value="">Select IP type...</option><option>Patent</option><option>Trademark</option><option>Copyright</option><option>Industrial Design</option></select>
+            <div class="mt-3 hidden" data-feedback="q31"></div>
+          </div>
+          <div class="p-5 border-2 border-gray-200 rounded-xl hover:border-gray-300 transition">
+            <p class="font-medium text-lg mb-3">B) MATLAB code for image analysis</p>
+            <select data-q="q32" class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg focus:border-[#1877F2]"><option value="">Select IP type...</option><option>Patent</option><option>Trademark</option><option>Copyright</option><option>Industrial Design</option></select>
+            <div class="mt-3 hidden" data-feedback="q32"></div>
+          </div>
+          <div class="p-5 border-2 border-gray-200 rounded-xl hover:border-gray-300 transition">
+            <p class="font-medium text-lg mb-3">C) Brand name for COVID test kit "QuickCov"</p>
+            <select data-q="q33" class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg focus:border-[#1877F2]"><option value="">Select IP type...</option><option>Patent</option><option>Trademark</option><option>Copyright</option><option>Industrial Design</option></select>
+            <div class="mt-3 hidden" data-feedback="q33"></div>
+          </div>
+          <div class="p-5 border-2 border-gray-200 rounded-xl hover:border-gray-300 transition">
+            <p class="font-medium text-lg mb-3">D) Novel mRNA delivery method reducing toxicity</p>
+            <select data-q="q34" class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg focus:border-[#1877F2]"><option value="">Select IP type...</option><option>Patent</option><option>Trademark</option><option>Copyright</option><option>Industrial Design</option></select>
+            <div class="mt-3 hidden" data-feedback="q34"></div>
+          </div>
+        </div>
+        <button id="check-quiz3" class="mt-8 px-8 py-4 bg-[#1877F2] text-white font-semibold rounded-xl hover:bg-[#166FE5] transition text-lg shadow-md hover:shadow-lg">Check Answers</button>
+      </div>`,
+
+      // Slide 23 - IP Strategy
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">IP Strategy for Researchers</h2>
+        <div class="space-y-4">
+          <div class="flex gap-5 items-start p-6 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-3xl mt-1">🗓️</span><div><strong class="text-xl">Pre-publication timeline</strong><p class="text-gray-600 text-lg mt-1">Plan filing 3–6 months before paper/thesis submission</p></div></div>
+          <div class="flex gap-5 items-start p-6 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-3xl mt-1">🔒</span><div><strong class="text-xl">File patent before disclosure</strong><p class="text-gray-600 text-lg mt-1">Conference, preprint, or poster counts as public disclosure</p></div></div>
+          <div class="flex gap-5 items-start p-6 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-3xl mt-1">™️</span><div><strong class="text-xl">Register trademark early</strong><p class="text-gray-600 text-lg mt-1">Secure spin-off name before incorporation and domain purchase</p></div></div>
+          <div class="flex gap-5 items-start p-6 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-3xl mt-1">©️</span><div><strong class="text-xl">Apply copyright notices</strong><p class="text-gray-600 text-lg mt-1">© 2026 Name. License code explicitly (MIT, Apache 2.0)</p></div></div>
+          <div class="flex gap-5 items-start p-6 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-3xl mt-1">🤝</span><div><strong class="text-xl">Use NDAs</strong><p class="text-gray-600 text-lg mt-1">Before sharing unpublished data with industry partners</p></div></div>
+        </div>
+      </div>`,
+
+      // Slide 24 - Pitfalls
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Common Pitfalls</h2>
+        <div class="grid md:grid-cols-2 gap-5">
+          <div class="p-6 border-l-4 border-red-500 bg-red-50 rounded-r-xl hover:shadow-md transition"><h3 class="font-semibold text-xl mb-2 text-red-800">Premature disclosure</h3><p class="text-gray-700">Publishing before filing destroys novelty worldwide. Even conference abstracts count.</p></div>
+          <div class="p-6 border-l-4 border-red-500 bg-red-50 rounded-r-xl hover:shadow-md transition"><h3 class="font-semibold text-xl mb-2 text-red-800">No confidentiality agreements</h3><p class="text-gray-700">Sharing with collaborators or companies without NDAs risks loss of rights.</p></div>
+          <div class="p-6 border-l-4 border-red-500 bg-red-50 rounded-r-xl hover:shadow-md transition"><h3 class="font-semibold text-xl mb-2 text-red-800">Unclear ownership</h3><p class="text-gray-700">Multi-institution projects without IP clauses lead to disputes later.</p></div>
+          <div class="p-6 border-l-4 border-red-500 bg-red-50 rounded-r-xl hover:shadow-md transition"><h3 class="font-semibold text-xl mb-2 text-red-800">Unlicensed code sharing</h3><p class="text-gray-700">GitHub without license = all rights reserved. Others cannot legally use it.</p></div>
+        </div>
+      </div>`,
+
+      // Slide 25 - Resources
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Resources in Malaysia</h2>
+        <ul class="space-y-4">
+          <li class="flex gap-4 items-start p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-[#1877F2] font-bold text-2xl mt-1">•</span><div><strong class="text-xl">MyIPO</strong><p class="text-gray-600 text-lg">Intellectual Property Corporation of Malaysia – patents, trademarks, designs (myipo.gov.my)</p></div></li>
+          <li class="flex gap-4 items-start p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-[#1877F2] font-bold text-2xl mt-1">•</span><div><strong class="text-xl">University TTO</strong><p class="text-gray-600 text-lg">Technology Transfer Office for disclosure, filing support, and commercialization</p></div></li>
+          <li class="flex gap-4 items-start p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-[#1877F2] font-bold text-2xl mt-1">•</span><div><strong class="text-xl">CRIM (MyIPO)</strong><p class="text-gray-600 text-lg">IP training programs and clinic consultations</p></div></li>
+          <li class="flex gap-4 items-start p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-[#1877F2] font-bold text-2xl mt-1">•</span><div><strong class="text-xl">WIPO resources</strong><p class="text-gray-600 text-lg">wipo.int – PATENTSCOPE, Global Brand Database, tutorials</p></div></li>
+          <li class="flex gap-4 items-start p-5 bg-white border border-gray-200 rounded-xl hover:shadow-md transition"><span class="text-[#1877F2] font-bold text-2xl mt-1">•</span><div><strong class="text-xl">IP valuation support</strong><p class="text-gray-600 text-lg">MDEC, Cradle, MTDC for commercialization funding</p></div></li>
+        </ul>
+      </div>`,
+
+      // Slide 26 - Quiz 4
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-3">Quiz 4</h2>
+        <p class="text-gray-600 mb-8 text-lg">Final scenario-based assessment</p>
+        <div class="space-y-6 max-h-[55vh] overflow-y-auto pr-2" id="quiz4-container">
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-lg mb-3">1. You present data at a conference, then file a patent next month. What is the risk?</p>
+            <div class="space-y-2">
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q41" value="A" class="mt-1"> <span>A) None</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q41" value="B" class="mt-1"> <span>B) Loss of novelty – disclosure before filing</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q41" value="C" class="mt-1"> <span>C) Trademark opposition</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q41" value="D" class="mt-1"> <span>D) Copyright expires</span></label>
+            </div>
+            <div class="mt-2 hidden" data-feedback="q41"></div>
+          </div>
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-lg mb-3">2. PhD student creates software using university resources. Who typically owns copyright?</p>
+            <div class="space-y-2">
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q42" value="A" class="mt-1"> <span>A) Student automatically</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q42" value="B" class="mt-1"> <span>B) Supervisor</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q42" value="C" class="mt-1"> <span>C) University (per IP policy)</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q42" value="D" class="mt-1"> <span>D) Public domain</span></label>
+            </div>
+            <div class="mt-2 hidden" data-feedback="q42"></div>
+          </div>
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-lg mb-3">3. You use AI to generate a figure for your paper. Best practice?</p>
+            <div class="space-y-2">
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q43" value="A" class="mt-1"> <span>A) Claim full copyright, no disclosure</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q43" value="B" class="mt-1"> <span>B) Document human edits, check platform terms, disclose AI use</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q43" value="C" class="mt-1"> <span>C) Avoid citation</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q43" value="D" class="mt-1"> <span>D) Register it as a trademark</span></label>
+            </div>
+            <div class="mt-2 hidden" data-feedback="q43"></div>
+          </div>
+          <div class="bg-gray-50 p-6 rounded-xl">
+            <p class="font-semibold text-lg mb-3">4. Collaboration with industry, no written agreement. Main risk?</p>
+            <div class="space-y-2">
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q44" value="A" class="mt-1"> <span>A) Unclear ownership and rights</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q44" value="B" class="mt-1"> <span>B) Automatic patent grant</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q44" value="C" class="mt-1"> <span>C) Longer copyright term</span></label>
+              <label class="flex items-start gap-3 p-2 rounded hover:bg-white cursor-pointer"><input type="radio" name="q44" value="D" class="mt-1"> <span>D) None</span></label>
+            </div>
+            <div class="mt-2 hidden" data-feedback="q44"></div>
+          </div>
+        </div>
+        <button id="check-quiz4" class="mt-6 px-8 py-4 bg-[#1877F2] text-white font-semibold rounded-xl hover:bg-[#166FE5] transition text-lg shadow-md hover:shadow-lg">Check Answers</button>
+      </div>`,
+
+      // Slide 27 - Summary
+      `<div>
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-8">Summary and Checklist</h2>
+        <div class="grid lg:grid-cols-2 gap-8">
+          <div>
+            <h3 class="font-semibold text-2xl mb-5 flex items-center gap-3"><span class="text-3xl">📋</span> Four IP Types Recap</h3>
+            <ul class="space-y-4">
+              <li class="p-4 bg-gradient-to-r from-blue-50 to-white border-l-4 border-[#1877F2] rounded-r-lg"><strong class="text-lg">🧪 Patent:</strong> <span class="text-gray-700">how it works – 20 years</span></li>
+              <li class="p-4 bg-gradient-to-r from-blue-50 to-white border-l-4 border-[#1877F2] rounded-r-lg"><strong class="text-lg">™️ Trademark:</strong> <span class="text-gray-700">brand identity – renewable</span></li>
+              <li class="p-4 bg-gradient-to-r from-blue-50 to-white border-l-4 border-[#1877F2] rounded-r-lg"><strong class="text-lg">©️ Copyright:</strong> <span class="text-gray-700">expression – life+50</span></li>
+              <li class="p-4 bg-gradient-to-r from-blue-50 to-white border-l-4 border-[#1877F2] rounded-r-lg"><strong class="text-lg">🎨 Design:</strong> <span class="text-gray-700">how it looks – up to 25 years</span></li>
+            </ul>
+          </div>
+          <div class="bg-[#1877F2]/5 p-7 rounded-2xl border-2 border-[#1877F2]/20">
+            <h3 class="font-semibold text-2xl mb-5 flex items-center gap-3"><span class="text-3xl">✓</span> Pre-publication Checklist</h3>
+            <ul class="space-y-3 text-lg">
+              <li class="flex gap-3"><input type="checkbox" class="mt-1 w-5 h-5 accent-[#1877F2]"> <span>Novelty search completed</span></li>
+              <li class="flex gap-3"><input type="checkbox" class="mt-1 w-5 h-5 accent-[#1877F2]"> <span>Patent filing decision made</span></li>
+              <li class="flex gap-3"><input type="checkbox" class="mt-1 w-5 h-5 accent-[#1877F2]"> <span>NDA signed for external talks</span></li>
+              <li class="flex gap-3"><input type="checkbox" class="mt-1 w-5 h-5 accent-[#1877F2]"> <span>Trademark clearance done</span></li>
+              <li class="flex gap-3"><input type="checkbox" class="mt-1 w-5 h-5 accent-[#1877F2]"> <span>Copyright notice & license chosen</span></li>
+              <li class="flex gap-3"><input type="checkbox" class="mt-1 w-5 h-5 accent-[#1877F2]"> <span>Ownership clarified in collaboration</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>`,
+
+      // Slide 28 - References
+      `<div class="text-center flex flex-col justify-center h-full min-h-[55vh]">
+        <h2 class="text-4xl md:text-5xl font-bold text-[#1877F2] mb-10">References</h2>
+        <div class="space-y-6 max-w-3xl mx-auto">
+          <div class="p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-[#1877F2] transition">
+            <p class="text-2xl"><a href="https://www.myipo.gov.my" target="_blank" class="text-[#1877F2] hover:underline font-semibold">myipo.gov.my</a></p>
+            <p class="text-gray-600 mt-2">Intellectual Property Corporation of Malaysia</p>
+          </div>
+          <div class="p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-[#1877F2] transition">
+            <p class="text-2xl"><a href="https://www.wipo.int" target="_blank" class="text-[#1877F2] hover:underline font-semibold">wipo.int</a></p>
+            <p class="text-gray-600 mt-2">World Intellectual Property Organization</p>
+          </div>
+          <div class="p-6 bg-white border-2 border-gray-200 rounded-2xl">
+            <p class="text-2xl font-semibold text-gray-800">University Technology Transfer Office</p>
+            <p class="text-gray-600 mt-2">Your institutional TTO for filing support</p>
+          </div>
+        </div>
+        <div class="mt-12 p-6 bg-gradient-to-r from-[#1877F2]/10 to-purple-50 rounded-2xl inline-block border border-[#1877F2]/20">
+          <p class="text-xl text-gray-800 font-medium">Questions? Contact your institutional TTO before publishing.</p>
+        </div>
+      </div>`
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+
+    const slideContent = document.getElementById('slide-content');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const slideCounter = document.getElementById('slide-counter');
+
+    function updateSlide() {
+      slideContent.innerHTML = slides[currentSlide];
+      slideCounter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+      progressBar.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+      
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === totalSlides - 1;
+      
+      // Attach quiz handlers
+      attachQuizHandlers();
+      
+      // Scroll to top
+      slideContent.scrollTop = 0;
+    }
+
+    function attachQuizHandlers() {
+      // Quiz 1
+      const check1 = document.getElementById('check-quiz1');
+      if (check1) {
+        check1.onclick = () => evaluateQuiz1();
+      }
+      // Quiz 2
+      const check2 = document.getElementById('check-quiz2');
+      if (check2) {
+        check2.onclick = () => evaluateQuiz2();
+      }
+      // Quiz 3
+      const check3 = document.getElementById('check-quiz3');
+      if (check3) {
+        check3.onclick = () => evaluateQuiz3();
+      }
+      // Quiz 4
+      const check4 = document.getElementById('check-quiz4');
+      if (check4) {
+        check4.onclick = () => evaluateQuiz4();
+      }
+    }
+
+    function evaluateQuiz1() {
+      const answers = { q1: 'C', q2: 'B', q3: 'C' };
+      const explanations = {
+        q1: 'Correct! The physical notebook is tangible property. IP protects the intangible content (ideas/expression) inside it, not the paper itself.',
+        q2: 'Correct! IP protects the expression or implementation of ideas, not the abstract ideas themselves.',
+        q3: 'Correct! Malaysian patents provide 20 years of protection from the filing date.'
+      };
+      const wrongExplanations = {
+        q1: 'The physical notebook is just paper – IP protects intangible creations like patents, trademarks, and copyright works.',
+        q2: 'Ideas alone are not protected – you must express or implement them (write paper, build invention, create design).',
+        q3: 'Malaysian patents last 20 years from filing, not 10 or 15. Life+50 is for copyright.'
+      };
+
+      Object.keys(answers).forEach(q => {
+        const selected = document.querySelector(`input[name="${q}"]:checked`);
+        const feedback = document.querySelector(`[data-feedback="${q}"]`);
+        if (selected && feedback) {
+          const isCorrect = selected.value === answers[q];
+          feedback.className = 'mt-3 p-3 rounded-lg text-sm ' + (isCorrect ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300');
+          feedback.innerHTML = `<strong>${isCorrect ? '✓ Correct!' : '✗ Incorrect'}</strong> ${isCorrect ? explanations[q] : wrongExplanations[q]}`;
+          feedback.classList.remove('hidden');
+        }
+      });
+    }
+
+    function evaluateQuiz2() {
+      const answers = { q21: 'A', q22: 'B', q23: 'B' };
+      const explanations = {
+        q21: 'Correct! A novel circuit is a technical invention protected by patent.',
+        q22: 'Correct! Company and product names are protected by trademarks.',
+        q23: 'Correct! Logos are protected by trademark law (and possibly as industrial designs), not patents.'
+      };
+
+      Object.keys(answers).forEach(q => {
+        const selected = document.querySelector(`input[name="${q}"]:checked`);
+        const feedback = document.querySelector(`[data-feedback="${q}"]`);
+        if (selected && feedback) {
+          const isCorrect = selected.value === answers[q];
+          feedback.className = 'mt-3 p-3 rounded-lg text-sm ' + (isCorrect ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300');
+          feedback.innerHTML = `<strong>${isCorrect ? '✓ Correct!' : '✗ Incorrect'}</strong> ${explanations[q]}`;
+          feedback.classList.remove('hidden');
+        }
+      });
+    }
+
+    function evaluateQuiz3() {
+      const answers = { q31: 'Industrial Design', q32: 'Copyright', q33: 'Trademark', q34: 'Patent' };
+      const explanations = {
+        q31: 'Correct! The shape/appearance of the pipette is protected as an industrial design.',
+        q32: 'Correct! Software code is automatically protected by copyright.',
+        q33: 'Correct! Brand names for products are protected by trademark.',
+        q34: 'Correct! A novel technical method is protected by patent.'
+      };
+
+      Object.keys(answers).forEach(q => {
+        const select = document.querySelector(`select[data-q="${q}"]`);
+        const feedback = document.querySelector(`[data-feedback="${q}"]`);
+        if (select && feedback) {
+          const isCorrect = select.value === answers[q];
+          feedback.className = 'mt-3 p-3 rounded-lg text-sm ' + (isCorrect ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300');
+          feedback.innerHTML = `<strong>${isCorrect ? '✓ Correct!' : '✗ The answer is ' + answers[q]}</strong> ${explanations[q]}`;
+          feedback.classList.remove('hidden');
+        }
+      });
+    }
+
+    function evaluateQuiz4() {
+      const answers = { q41: 'B', q42: 'C', q43: 'B', q44: 'A' };
+      const explanations = {
+        q41: 'Correct! Any public disclosure before filing destroys novelty for patents.',
+        q42: 'Correct! Most university IP policies assign ownership to the university for work using substantial resources.',
+        q43: 'Correct! Transparency, documentation, and checking terms are essential for AI-generated content.',
+        q44: 'Correct! Without written agreements, ownership of foreground IP becomes disputed.'
+      };
+
+      Object.keys(answers).forEach(q => {
+        const selected = document.querySelector(`input[name="${q}"]:checked`);
+        const feedback = document.querySelector(`[data-feedback="${q}"]`);
+        if (selected && feedback) {
+          const isCorrect = selected.value === answers[q];
+          feedback.className = 'mt-2 p-3 rounded-lg text-sm ' + (isCorrect ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300');
+          feedback.innerHTML = `<strong>${isCorrect ? '✓' : '✗'}</strong> ${explanations[q]}`;
+          feedback.classList.remove('hidden');
+        }
+      });
+    }
+
+    prevBtn.addEventListener('click', () => {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateSlide();
+      }
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' && currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      } else if (e.key === 'ArrowRight' && currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateSlide();
+      }
+    });
+
+    // Initialize
+    updateSlide();
+  </script>
+</body>
+</html>
